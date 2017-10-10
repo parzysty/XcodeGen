@@ -159,11 +159,17 @@ public class PBXProjGenerator {
         let carthageDependencies = getAllCarthageDependencies(target: target)
 
         let sourcePaths = target.sources.map { basePath + $0 }
-        var sourceFilePaths: [Path] = []
+        let sourceExcludesPaths = target.sourceExludes.map { basePath + $0 }
+        var sourceFilePaths = Set<Path>()
 
         for source in sourcePaths {
             let sourceGroups = try getGroups(path: source)
-            sourceFilePaths += sourceGroups.filePaths
+            sourceFilePaths = sourceFilePaths.union(sourceGroups.filePaths)
+        }
+
+        for source in sourceExcludesPaths {
+            let sourceGroups = try getGroups(path: source)
+            sourceFilePaths = sourceFilePaths.subtracting(sourceGroups.filePaths)
         }
 
         // find all Info.plist
@@ -464,17 +470,18 @@ public class PBXProjGenerator {
     func getGroups(path: Path, depth: Int = 0) throws -> (filePaths: [Path], groups: [PBXGroup]) {
 
         let excludedFiles: [String] = [".DS_Store"]
+        let paths = path.isDirectory ? try path.children() : [path]
 
-        let directories = try path.children()
+        let directories = paths
             .filter { $0.isDirectory && $0.extension == nil && $0.extension != "lproj" }
             .sorted { $0.lastComponent < $1.lastComponent }
 
-        let filePaths = try path.children()
+        let filePaths = paths
             .filter { $0.isFile || $0.extension != nil && $0.extension != "lproj" }
             .filter { !excludedFiles.contains($0.lastComponent) }
             .sorted { $0.lastComponent < $1.lastComponent }
 
-        let localisedDirectories = try path.children()
+        let localisedDirectories = paths
             .filter { $0.extension == "lproj" }
             .sorted { $0.lastComponent < $1.lastComponent }
 
