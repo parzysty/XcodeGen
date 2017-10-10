@@ -66,7 +66,8 @@ public class PBXProjGenerator {
         project = PBXProj(archiveVersion: 1, objectVersion: 46, rootObject: generateUUID(PBXProject.self, spec.name))
 
         for group in spec.fileGroups {
-            _ = try getGroups(path: basePath + group)
+            let fileGroups = try getGroups(path: basePath + group)
+            topLevelGroups.insert(contentsOf: fileGroups.topLevelGroups, at: 0)
         }
 
         let buildConfigs: [XCBuildConfiguration] = spec.configs.map { config in
@@ -165,6 +166,7 @@ public class PBXProjGenerator {
         for source in sourcePaths {
             let sourceGroups = try getGroups(path: source)
             sourceFilePaths = sourceFilePaths.union(sourceGroups.filePaths)
+            topLevelGroups.append(contentsOf: sourceGroups.topLevelGroups)
         }
 
         for source in sourceExcludesPaths {
@@ -467,7 +469,7 @@ public class PBXProjGenerator {
         }
     }
 
-    func getGroups(path: Path, depth: Int = 0) throws -> (filePaths: [Path], groups: [PBXGroup]) {
+    func getGroups(path: Path, depth: Int = 0) throws -> (filePaths: [Path], groups: [PBXGroup], topLevelGroups: [PBXGroup]) {
 
         let excludedFiles: [String] = [".DS_Store"]
         let paths = path.isDirectory ? try path.children() : [path]
@@ -518,6 +520,7 @@ public class PBXProjGenerator {
 
         let groupPath: String = depth == 0 ? path.byRemovingBase(path: basePath).string : path.lastComponent
         let group: PBXGroup
+        var topLevelGroups: [PBXGroup] = []
         if let cachedGroup = groupsByPath[path] {
             group = cachedGroup
         } else {
@@ -529,6 +532,6 @@ public class PBXProjGenerator {
             groupsByPath[path] = group
         }
         groups.insert(group, at: 0)
-        return (allFilePaths, groups)
+        return (allFilePaths, groups, topLevelGroups)
     }
 }
